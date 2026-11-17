@@ -7,22 +7,38 @@ import de.maxhenkel.voicechat.debug.CooldownTimer;
 import de.maxhenkel.voicechat.debug.VoicechatUncaughtExceptionHandler;
 import de.maxhenkel.voicechat.intercompatibility.ClientCompatibilityManager;
 import de.maxhenkel.voicechat.plugins.ClientPluginManager;
-import de.maxhenkel.voicechat.voice.common.*;
+import de.maxhenkel.voicechat.voice.common.AuthenticateAckPacket;
+import de.maxhenkel.voicechat.voice.common.AuthenticatePacket;
+import de.maxhenkel.voicechat.voice.common.ConnectionCheckAckPacket;
+import de.maxhenkel.voicechat.voice.common.ConnectionCheckPacket;
+import de.maxhenkel.voicechat.voice.common.KeepAlivePacket;
+import de.maxhenkel.voicechat.voice.common.NetworkMessage;
+import de.maxhenkel.voicechat.voice.common.PingPacket;
+import de.maxhenkel.voicechat.voice.common.SoundPacket;
+import de.maxhenkel.voicechat.voice.common.Utils;
 import net.minecraft.client.Minecraft;
-
-import javax.annotation.Nullable;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ProtocolException;
 import java.net.UnknownHostException;
+import java.util.Hashtable;
+import java.util.Optional;
+import java.util.function.Function;
+import javax.annotation.Nullable;
+import javax.naming.NamingException;
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
+import javax.naming.directory.InitialDirContext;
+import org.jspecify.annotations.NonNull;
 
 public class ClientVoicechatConnection extends Thread {
+    private static final Function<String, Optional<InetSocketAddress>> DNS_SRV_RESOLVER = createDnsResolver();
 
     private final ClientVoicechat client;
     private final InitializationData data;
     private final ClientVoicechatSocket socket;
     @Nullable
-    private volatile InetAddress address;
+    private volatile InetSocketAddress socketAddress;
     private volatile boolean running;
     private volatile byte[] connectionCheckNonce;
     private volatile boolean authenticated;
@@ -52,7 +68,16 @@ public class ClientVoicechatConnection extends Thread {
      */
     @Nullable
     public InetAddress getAddress() {
-        return address;
+        final InetSocketAddress address = socketAddress;
+        if (address != null) {
+            return address.getAddress();
+        }
+        return null;
+    }
+
+    @Nullable
+    public InetSocketAddress getSocketAddress() {
+        return socketAddress;
     }
 
     public ClientVoicechatSocket getSocket() {
@@ -66,7 +91,7 @@ public class ClientVoicechatConnection extends Thread {
     @Override
     public void run() {
         try {
-            address = resolveAddress();
+            socketAddress = createSocketAddress();
         } catch (UnknownHostException e) {
             if (running) {
                 Voicechat.LOGGER.error("Failed to resolve voice chat server address '{}' - Disconnecting", data.getServerIP());
@@ -164,7 +189,7 @@ public class ClientVoicechatConnection extends Thread {
             return false; // Ignore sending packets when connection is closed
         }
         try {
-            socket.send(ClientNetworkMessage.writeClient(this, message), new InetSocketAddress(address, data.getServerPort()));
+            socket.send(ClientNetworkMessage.writeClient(this, message), socketAddress);
             return true;
         } catch (Exception e) {
             Voicechat.LOGGER.error("Failed to send voice chat packet - Disconnecting", e);
@@ -174,6 +199,16 @@ public class ClientVoicechatConnection extends Thread {
             disconnect();
             return false;
         }
+    }
+
+    private @NonNull InetSocketAddress createSocketAddress() throws UnknownHostException {
+        if (data.getServerPort() == 24454) {
+            final Optional<InetSocketAddress> srv = DNS_SRV_RESOLVER.apply(data.getServerIP());
+            if (srv.isPresent()) {
+                return srv.get();
+            }
+        }
+        return new InetSocketAddress(resolveAddress(), data.getServerPort());
     }
 
     /**
@@ -251,4 +286,29 @@ public class ClientVoicechatConnection extends Thread {
         }
     }
 
+    private static Function<String, Optional<InetSocketAddress>> createDnsResolver() {
+        try {
+            Hashtable<String, String> env = new Hashtable<>();
+            env.put("java.naming.factory.initial", "com.sun.jndi.dns.DnsContextFactory");
+            env.put("java.naming.provider.url", "dns:");
+            env.put("com.sun.jndi.dns.timeout.retries", "1");
+            InitialDirContext context = new InitialDirContext(env);
+            return (serverIp) -> {
+                try {
+                    final Attributes attributes = context.getAttributes("_voicechat._udp." + serverIp, new String[]{"SRV"});
+                    final Attribute srvAttribute = attributes.get("srv");
+                    if (srvAttribute != null) {
+                        String[] arguments = srvAttribute.get().toString().split(" ", 4);
+                        var ip = arguments[3];
+                        var port = Integer.parseInt(arguments[2]);
+                        return Optional.of(new InetSocketAddress(ip, port));
+                    }
+                } catch (NamingException _) {
+                }
+                return Optional.empty();
+            };
+        } catch (NamingException e) {
+            return (_) -> Optional.empty();
+        }
+    }
 }
