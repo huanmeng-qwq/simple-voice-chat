@@ -301,6 +301,7 @@ public class ClientVoicechatConnection extends Thread {
                         String[] arguments = srvAttribute.get().toString().split(" ", 4);
                         var ip = arguments[3];
                         var port = Integer.parseInt(arguments[2]);
+                        Voicechat.LOGGER.info("Using SRV record to connect: {}:{}", ip, port);
                         return Optional.of(new InetSocketAddress(ip, port));
                     }
                 } catch (NamingException _) {

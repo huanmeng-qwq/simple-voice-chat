@@ -5,8 +5,9 @@ import de.maxhenkel.voicechat.config.ServerConfig;
 import de.maxhenkel.voicechat.net.SecretPacket;
 import de.maxhenkel.voicechat.voice.common.Secret;
 
-import java.net.URI;
 import java.util.UUID;
+import org.czeal.urireference.Host;
+import org.czeal.urireference.URIReference;
 
 public class InitializationData {
 
@@ -52,12 +53,13 @@ public class InitializationData {
             }
         } catch (NumberFormatException ignored) {
             try {
-                URI uri = new URI("voicechat://" + voiceHost);
-                String host = uri.getHost();
+                // rfc3986
+                URIReference uri = URIReference.parse("voicechat://" + voiceHost);
+                Host host = uri.getHost();
                 int hostPort = uri.getPort();
 
                 if (host != null) {
-                    ip = host;
+                    ip = host.getValue();
                 }
 
                 if (hostPort > 0) {

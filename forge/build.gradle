@@ -42,6 +42,9 @@ dependencies {
     minecraftLibrary "de.maxhenkel.speex4j:speex4j:${speex4j_version}"
     shadow "de.maxhenkel.speex4j:speex4j:${speex4j_version}"
 
+    minecraftLibrary "org.czeal:urireference:${urireference}"
+    shadow "org.czeal:urireference:${urireference}"
+
     implementation('net.sf.jopt-simple:jopt-simple:5.0.4') { version { strictly '5.0.4' } }
 }
 

@@ -71,6 +71,9 @@ dependencies {
 
     implementation "de.maxhenkel.speex4j:speex4j:${speex4j_version}"
     shadow "de.maxhenkel.speex4j:speex4j:${speex4j_version}"
+
+    implementation "org.czeal:urireference:${urireference}"
+    shadow "org.czeal:urireference:${urireference}"
 }
 
 tasks.register('generateJava', Copy) {

@@ -55,6 +55,9 @@ dependencies {
     implementation "de.maxhenkel.speex4j:speex4j:${speex4j_version}"
     shadow "de.maxhenkel.speex4j:speex4j:${speex4j_version}"
 
+    implementation "org.czeal:urireference:${urireference}"
+    shadow "org.czeal:urireference:${urireference}"
+
     if (include_test_addon.toBoolean()) {
         localRuntime project(':fabric:test-addon')
     }

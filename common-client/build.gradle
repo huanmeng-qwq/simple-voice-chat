@@ -14,6 +14,7 @@ dependencies {
     implementation "de.maxhenkel.rnnoise4j:rnnoise4j:${rnnoise4j_version}"
     implementation "de.maxhenkel.lame4j:lame4j:${lame4j_version}"
     implementation "de.maxhenkel.speex4j:speex4j:${speex4j_version}"
+    implementation "org.czeal:urireference:${urireference}"
 }
 
 // To make common-client compilation not fail
